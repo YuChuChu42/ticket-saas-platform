@@ -1,5 +1,5 @@
 import type { Directive, DirectiveBinding } from 'vue'
-import { hasPermission } from '@/utils/permission'
+import { hasPermission, hasRole } from '@/utils/permission'
 
 /**
  * 权限指令
@@ -42,7 +42,6 @@ export const roleDirective: Directive = {
       return
     }
 
-    const { hasRole } = await import('@/utils/permission')
     const hasTheRole = hasRole(value)
 
     if (!hasTheRole) {
