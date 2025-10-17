@@ -1,4 +1,5 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+import axios from 'axios'
+import type { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import type { ApiResponse } from '@/types'
@@ -27,11 +28,11 @@ function getRequestKey(config: AxiosRequestConfig): string {
 function checkThrottle(key: string): boolean {
   const now = Date.now()
   const lastTime = requestQueue.get(key)
-  
+
   if (lastTime && now - lastTime < THROTTLE_TIME) {
     return false // 节流中
   }
-  
+
   requestQueue.set(key, now)
   return true
 }
@@ -102,7 +103,7 @@ service.interceptors.response.use(
   },
   async (error: AxiosError<ApiResponse>) => {
     const { response, config } = error
-    
+
     // 网络错误
     if (!response) {
       ElMessage.error('网络连接失败，请检查您的网络')
@@ -119,7 +120,7 @@ service.interceptors.response.use(
         // Token 过期或无效，尝试刷新 Token
         if (!config._retry) {
           config._retry = true
-          
+
           try {
             // 刷新 Token
             const newToken = await userStore.refreshToken()
@@ -157,24 +158,25 @@ service.interceptors.response.use(
       case 500:
       case 502:
       case 503:
-      case 504:
+      case 504: {
         // 服务器错误，尝试重试
-        const retries = (config as any).__retryCount || 0
-        
+        const retries = (config as unknown as { __retryCount?: number }).__retryCount || 0
+
         if (retries < retryConfig.retries && retryConfig.retryCondition(error)) {
-          (config as any).__retryCount = retries + 1
-          
+          ;(config as unknown as { __retryCount?: number }).__retryCount = retries + 1
+
           // 延迟重试
           await new Promise((resolve) =>
             setTimeout(resolve, retryConfig.retryDelay * Math.pow(2, retries))
           )
-          
+
           ElMessage.warning(`请求失败，正在重试 (${retries + 1}/${retryConfig.retries})`)
           return service(config)
         }
-        
+
         ElMessage.error(data?.message || '服务器错误，请稍后再试')
         break
+      }
 
       default:
         ElMessage.error(data?.message || '请求失败')
@@ -259,4 +261,3 @@ declare module 'axios' {
     __retryCount?: number
   }
 }
-
